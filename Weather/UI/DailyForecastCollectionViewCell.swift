@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class DailyForecastCollectionViewCell: UICollectionViewCell {
     static let reuseIdentifier = "DailyForecastCollectionViewCell"
 

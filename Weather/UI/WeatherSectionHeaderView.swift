@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherSectionHeaderView: UICollectionReusableView {
     static let reuseIdentifier = "WeatherSectionHeaderView"
 

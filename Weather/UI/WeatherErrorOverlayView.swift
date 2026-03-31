@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherErrorOverlayView: UIView {
     var onRetry: (() -> Void)?
 

@@ -1,17 +1,17 @@
 import Foundation
 
-struct CurrentWeatherResponseDTO: Decodable {
+struct CurrentWeatherResponseDTO: Decodable, Sendable {
     let location: LocationDTO
     let current: CurrentDTO
 }
 
-struct ForecastWeatherResponseDTO: Decodable {
+struct ForecastWeatherResponseDTO: Decodable, Sendable {
     let location: LocationDTO
     let current: CurrentDTO
     let forecast: ForecastDTO
 }
 
-struct LocationDTO: Decodable {
+struct LocationDTO: Decodable, Sendable {
     let name: String
     let country: String
     let localTimeEpoch: TimeInterval
@@ -25,7 +25,7 @@ struct LocationDTO: Decodable {
     }
 }
 
-struct CurrentDTO: Decodable {
+struct CurrentDTO: Decodable, Sendable {
     let temperatureCelsius: Double
     let feelsLikeCelsius: Double
     let windKph: Double
@@ -45,7 +45,7 @@ struct CurrentDTO: Decodable {
     }
 }
 
-struct ForecastDTO: Decodable {
+struct ForecastDTO: Decodable, Sendable {
     let forecastDays: [ForecastDayDTO]
 
     enum CodingKeys: String, CodingKey {
@@ -53,7 +53,7 @@ struct ForecastDTO: Decodable {
     }
 }
 
-struct ForecastDayDTO: Decodable {
+struct ForecastDayDTO: Decodable, Sendable {
     let dateEpoch: TimeInterval
     let day: DayDTO
     let hours: [HourDTO]
@@ -65,7 +65,7 @@ struct ForecastDayDTO: Decodable {
     }
 }
 
-struct DayDTO: Decodable {
+struct DayDTO: Decodable, Sendable {
     let maxTempCelsius: Double
     let minTempCelsius: Double
     let dailyChanceOfRain: Int?
@@ -79,7 +79,7 @@ struct DayDTO: Decodable {
     }
 }
 
-struct HourDTO: Decodable {
+struct HourDTO: Decodable, Sendable {
     let timeEpoch: TimeInterval
     let temperatureCelsius: Double
     let isDay: Int
@@ -93,7 +93,7 @@ struct HourDTO: Decodable {
     }
 }
 
-struct ConditionDTO: Decodable {
+struct ConditionDTO: Decodable, Sendable {
     let text: String
     let code: Int
 }

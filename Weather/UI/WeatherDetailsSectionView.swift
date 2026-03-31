@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherDetailsSectionView: UIView {
     private let feelsLikeTile = StatTileView(title: "Ощущается как")
     private let windTile = StatTileView(title: "Ветер")

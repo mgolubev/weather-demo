@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class HourlyForecastCell: UICollectionViewCell {
     static let reuseIdentifier = "HourlyForecastCell"
 

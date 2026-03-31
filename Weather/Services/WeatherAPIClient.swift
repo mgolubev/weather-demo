@@ -37,8 +37,10 @@ final class WeatherAPIClient: WeatherFetching {
     }
 
     func fetchWeather(for coordinate: LocationCoordinate) async throws -> WeatherSnapshot {
-        let current: CurrentWeatherResponseDTO = try await request(.current, coordinate: coordinate)
-        let forecast: ForecastWeatherResponseDTO = try await request(.forecast(days: 3), coordinate: coordinate)
+        async let currentRequest: CurrentWeatherResponseDTO = request(.current, coordinate: coordinate)
+        async let forecastRequest: ForecastWeatherResponseDTO = request(.forecast(days: 3), coordinate: coordinate)
+
+        let (current, forecast) = try await (currentRequest, forecastRequest)
         return WeatherSnapshot(currentResponse: current, forecastResponse: forecast)
     }
 
@@ -126,10 +128,10 @@ enum WeatherServiceError: LocalizedError {
     }
 }
 
-private struct WeatherAPIErrorResponse: Decodable {
+private struct WeatherAPIErrorResponse: Decodable, Sendable {
     let error: WeatherAPIErrorDetails
 }
 
-private struct WeatherAPIErrorDetails: Decodable {
+private struct WeatherAPIErrorDetails: Decodable, Sendable {
     let message: String
 }

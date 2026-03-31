@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class DailyForecastRowView: UIView {
     private let dayLabel = UILabel()
     private let descriptionLabel = UILabel()

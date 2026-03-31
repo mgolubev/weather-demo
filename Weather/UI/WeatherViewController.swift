@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherViewController: UIViewController {
     private let viewModel: WeatherViewModel
     private lazy var screenView = WeatherScreenView()

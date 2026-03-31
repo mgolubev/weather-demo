@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherHeroSectionView: UIView {
     private let locationLabel = UILabel()
     private let metaLabel = UILabel()

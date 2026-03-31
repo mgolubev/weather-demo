@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 enum WeatherUIStyle {
     static func applySectionCardStyle(to view: UIView) {
         applyGlassStyle(

@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherLoadingOverlayView: UIView {
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     private let loadingLabel = UILabel()

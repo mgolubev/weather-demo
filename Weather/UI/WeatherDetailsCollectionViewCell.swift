@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class WeatherDetailsCollectionViewCell: UICollectionViewCell {
     static let reuseIdentifier = "WeatherDetailsCollectionViewCell"
 

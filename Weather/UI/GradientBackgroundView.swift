@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 class GradientBackgroundView: UIView {
     override class var layerClass: AnyClass {
         CAGradientLayer.self

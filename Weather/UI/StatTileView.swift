@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 final class StatTileView: UIView {
     private let titleLabel = UILabel()
     private let valueLabel = UILabel()

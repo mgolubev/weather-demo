@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 private enum WeatherScreenSection: Int, CaseIterable, Sendable {
     case hero
     case details
@@ -25,6 +26,7 @@ private enum WeatherScreenLayout {
     static let headerEstimatedHeight: CGFloat = 48
 }
 
+@MainActor
 final class WeatherScreenView: GradientBackgroundView {
     private enum RenderedItem: Hashable {
         case hero(WeatherHeroViewData)

@@ -5,6 +5,10 @@ protocol WeatherFetching {
 }
 
 final class WeatherAPIClient: WeatherFetching {
+    private enum Configuration {
+        static let requestTimeout: TimeInterval = 30
+    }
+
     private enum Endpoint {
         case current
         case forecast(days: Int)
@@ -32,7 +36,7 @@ final class WeatherAPIClient: WeatherFetching {
     private let session: URLSession
     private let decoder = JSONDecoder()
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = WeatherAPIClient.makeDefaultSession()) {
         self.session = session
     }
 
@@ -96,6 +100,13 @@ final class WeatherAPIClient: WeatherFetching {
             URLQueryItem(name: "lang", value: "ru")
         ] + endpoint.extraQueryItems
         return components.url
+    }
+
+    private static func makeDefaultSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = Configuration.requestTimeout
+        configuration.timeoutIntervalForResource = Configuration.requestTimeout
+        return URLSession(configuration: configuration)
     }
 }
 

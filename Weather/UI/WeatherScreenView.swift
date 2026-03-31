@@ -26,7 +26,7 @@ private enum WeatherScreenLayout {
 }
 
 final class WeatherScreenView: GradientBackgroundView {
-    private enum RenderedItem {
+    private enum RenderedItem: Hashable {
         case hero(WeatherHeroViewData)
         case details(WeatherDetailsViewData)
         case hourly(HourlyForecastItemViewData)
@@ -76,6 +76,7 @@ final class WeatherScreenView: GradientBackgroundView {
 
     private lazy var dataSource = makeDataSource()
     private var renderedItems: [String: RenderedItem] = [:]
+    private var lastViewData: WeatherScreenViewData?
 
     private let loadingOverlayView = WeatherLoadingOverlayView()
     private let errorOverlayView = WeatherErrorOverlayView()
@@ -323,45 +324,55 @@ final class WeatherScreenView: GradientBackgroundView {
     }
 
     private func apply(viewData: WeatherScreenViewData, isRefreshing: Bool = false) {
+        if lastViewData == viewData {
+            finishRendering(viewData: viewData, isRefreshing: isRefreshing)
+            return
+        }
+
         var snapshot = NSDiffableDataSourceSnapshot<Int, String>()
-        var renderedItems: [String: RenderedItem] = [:]
+        var newRenderedItems: [String: RenderedItem] = [:]
 
         let sectionIdentifiers = WeatherScreenSection.allCases.map(\.rawValue)
         snapshot.appendSections(sectionIdentifiers)
 
         let heroIdentifier = "hero"
-        renderedItems[heroIdentifier] = .hero(viewData.hero)
+        newRenderedItems[heroIdentifier] = .hero(viewData.hero)
         snapshot.appendItems([heroIdentifier], toSection: WeatherScreenSection.hero.rawValue)
 
         let detailsIdentifier = "details"
-        renderedItems[detailsIdentifier] = .details(viewData.details)
+        newRenderedItems[detailsIdentifier] = .details(viewData.details)
         snapshot.appendItems([detailsIdentifier], toSection: WeatherScreenSection.details.rawValue)
 
         let hourlyIdentifiers = viewData.hourlyItems.enumerated().map { index, item -> String in
             let identifier = "hourly-\(index)"
-            renderedItems[identifier] = .hourly(item)
+            newRenderedItems[identifier] = .hourly(item)
             return identifier
         }
         snapshot.appendItems(hourlyIdentifiers, toSection: WeatherScreenSection.hourly.rawValue)
 
         let dailyIdentifiers = viewData.dailyItems.enumerated().map { index, item -> String in
             let identifier = "daily-\(index)"
-            renderedItems[identifier] = .daily(item)
+            newRenderedItems[identifier] = .daily(item)
             return identifier
         }
         snapshot.appendItems(dailyIdentifiers, toSection: WeatherScreenSection.daily.rawValue)
 
-        self.renderedItems = renderedItems
-        dataSource.apply(snapshot, animatingDifferences: false)
-
-        applyTheme(isDay: viewData.isDay)
-        collectionView.isHidden = false
-        errorOverlayView.setVisible(false)
-        loadingOverlayView.setVisible(false)
-
-        if !isRefreshing {
-            refreshControl.endRefreshing()
+        let previousRenderedItems = renderedItems
+        let changedIdentifiers = newRenderedItems.compactMap { identifier, item in
+            previousRenderedItems[identifier] == item ? nil : identifier
         }
+        let persistedIdentifiers = Set(previousRenderedItems.keys)
+        let identifiersToReload = changedIdentifiers.filter { persistedIdentifiers.contains($0) }
+
+        if !identifiersToReload.isEmpty {
+            snapshot.reloadItems(identifiersToReload)
+        }
+
+        self.renderedItems = newRenderedItems
+        dataSource.apply(snapshot, animatingDifferences: false)
+        lastViewData = viewData
+
+        finishRendering(viewData: viewData, isRefreshing: isRefreshing)
     }
 
     private func apply(errorViewData: WeatherErrorViewData) {
@@ -384,5 +395,16 @@ final class WeatherScreenView: GradientBackgroundView {
         collectionView.isHidden = true
         loadingOverlayView.setVisible(true)
         refreshControl.endRefreshing()
+    }
+
+    private func finishRendering(viewData: WeatherScreenViewData, isRefreshing: Bool) {
+        applyTheme(isDay: viewData.isDay)
+        collectionView.isHidden = false
+        errorOverlayView.setVisible(false)
+        loadingOverlayView.setVisible(false)
+
+        if !isRefreshing {
+            refreshControl.endRefreshing()
+        }
     }
 }

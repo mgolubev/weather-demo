@@ -65,12 +65,12 @@ final class LocationService: NSObject, CLLocationManagerDelegate, LocationProvid
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let coordinate = locations.first?.coordinate else {
+        guard let coordinate = freshestCoordinate(in: locations) else {
             finishLocation(with: .moscow)
             return
         }
 
-        finishLocation(with: LocationCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude))
+        finishLocation(with: coordinate)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -80,5 +80,22 @@ final class LocationService: NSObject, CLLocationManagerDelegate, LocationProvid
     private func finishLocation(with coordinate: LocationCoordinate) {
         locationContinuation?.resume(returning: coordinate)
         locationContinuation = nil
+    }
+
+    private func freshestCoordinate(in locations: [CLLocation]) -> LocationCoordinate? {
+        let latestLocation = locations
+            .filter { $0.horizontalAccuracy >= 0 }
+            .max { lhs, rhs in
+                lhs.timestamp < rhs.timestamp
+            }
+
+        guard let latestLocation else {
+            return nil
+        }
+
+        return LocationCoordinate(
+            latitude: latestLocation.coordinate.latitude,
+            longitude: latestLocation.coordinate.longitude
+        )
     }
 }

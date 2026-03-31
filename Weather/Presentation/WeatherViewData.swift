@@ -1,6 +1,6 @@
 import Foundation
 
-struct WeatherScreenViewData {
+struct WeatherScreenViewData: Hashable, Sendable {
     let hero: WeatherHeroViewData
     let details: WeatherDetailsViewData
     let hourlyItems: [HourlyForecastItemViewData]

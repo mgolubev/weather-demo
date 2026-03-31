@@ -1,6 +1,6 @@
 import Foundation
 
-struct CurrentWeather {
+struct CurrentWeather: Codable, Hashable, Sendable {
     let temperature: Double
     let feelsLike: Double
     let windKph: Double
@@ -13,14 +13,14 @@ struct CurrentWeather {
     let dayLow: Double
 }
 
-struct HourlyForecast {
+struct HourlyForecast: Codable, Hashable, Sendable {
     let date: Date
     let temperature: Double
     let conditionCode: Int
     let isDay: Bool
 }
 
-struct DailyForecast {
+struct DailyForecast: Codable, Hashable, Sendable {
     let date: Date
     let minTemperature: Double
     let maxTemperature: Double

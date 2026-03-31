@@ -1,18 +1,18 @@
 import Foundation
 
-struct LocationCoordinate: Hashable, Sendable {
+struct LocationCoordinate: Codable, Hashable, Sendable {
     let latitude: Double
     let longitude: Double
 
     static let moscow = LocationCoordinate(latitude: 55.7558, longitude: 37.6176)
 }
 
-enum FallbackReason: Hashable, Sendable {
+enum FallbackReason: String, Codable, Hashable, Sendable {
     case permissionDenied
     case permissionRestricted
 }
 
-enum LocationSource: Hashable, Sendable {
+enum LocationSource: Codable, Hashable, Sendable {
     case device
     case fallback(reason: FallbackReason)
 

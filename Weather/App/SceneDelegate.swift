@@ -16,6 +16,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let viewModel = WeatherViewModel(
             locationProvider: LocationService(),
             weatherService: WeatherAPIClient(),
+            cacheService: WeatherCacheService(),
             mapper: WeatherViewDataMapper()
         )
 

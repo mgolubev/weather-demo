@@ -1,13 +1,21 @@
 import Foundation
 
 protocol WeatherViewDataMapping {
-    func map(snapshot: WeatherSnapshot, locationSource: LocationSource) -> WeatherScreenViewData
+    func map(
+        snapshot: WeatherSnapshot,
+        locationSource: LocationSource,
+        dataOrigin: WeatherDataOrigin
+    ) -> WeatherScreenViewData
 }
 
 struct WeatherViewDataMapper: WeatherViewDataMapping {
-    func map(snapshot: WeatherSnapshot, locationSource: LocationSource) -> WeatherScreenViewData {
+    func map(
+        snapshot: WeatherSnapshot,
+        locationSource: LocationSource,
+        dataOrigin: WeatherDataOrigin
+    ) -> WeatherScreenViewData {
         let metadataLine = "\(snapshot.country) • \(WeatherFormatters.updatedAt(snapshot.localTime, timeZone: snapshot.timeZone))"
-        let metaText = [metadataLine, locationSource.noticeText]
+        let metaText = [metadataLine, locationSource.noticeText, dataOrigin.noticeText]
             .compactMap { $0 }
             .joined(separator: "\n")
 

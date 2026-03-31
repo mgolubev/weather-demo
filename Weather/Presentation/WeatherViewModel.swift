@@ -6,6 +6,7 @@ final class WeatherViewModel {
 
     private let locationProvider: LocationProviding
     private let weatherService: WeatherFetching
+    private let cacheService: WeatherCaching
     private let mapper: WeatherViewDataMapping
 
     private var loadTask: Task<Void, Never>?
@@ -19,10 +20,12 @@ final class WeatherViewModel {
     init(
         locationProvider: LocationProviding,
         weatherService: WeatherFetching,
+        cacheService: WeatherCaching,
         mapper: WeatherViewDataMapping
     ) {
         self.locationProvider = locationProvider
         self.weatherService = weatherService
+        self.cacheService = cacheService
         self.mapper = mapper
     }
 
@@ -43,15 +46,20 @@ final class WeatherViewModel {
     }
 
     private func loadWeather() {
-        let previousContent = lastSuccessfulContent
         loadTask?.cancel()
-
-        state = previousContent.map(WeatherViewState.refreshing) ?? .loading
 
         loadTask = Task { [weak self] in
             guard let self else {
                 return
             }
+
+            let initialContent = await makeInitialContent()
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            state = initialContent.map(WeatherViewState.refreshing) ?? .loading
 
             do {
                 let resolvedLocation = try await locationProvider.requestCoordinates()
@@ -60,13 +68,26 @@ final class WeatherViewModel {
                 let snapshot = try await weatherService.fetchWeather(for: resolvedLocation.coordinate)
                 try Task.checkCancellation()
 
-                let viewData = mapper.map(snapshot: snapshot, locationSource: resolvedLocation.source)
+                await cacheService.save(
+                    CachedWeatherEntry(
+                        coordinate: resolvedLocation.coordinate,
+                        locationSource: resolvedLocation.source,
+                        snapshot: snapshot,
+                        savedAt: Date()
+                    )
+                )
+
+                let viewData = mapper.map(
+                    snapshot: snapshot,
+                    locationSource: resolvedLocation.source,
+                    dataOrigin: .live
+                )
                 lastSuccessfulContent = viewData
                 state = .content(viewData)
             } catch is CancellationError {
                 return
             } catch {
-                let title = previousContent == nil
+                let title = initialContent == nil
                     ? "Не удалось загрузить погоду"
                     : "Не удалось обновить данные"
 
@@ -79,5 +100,23 @@ final class WeatherViewModel {
                 )
             }
         }
+    }
+
+    private func makeInitialContent() async -> WeatherScreenViewData? {
+        if let lastSuccessfulContent {
+            return lastSuccessfulContent
+        }
+
+        guard let cachedEntry = await cacheService.loadLatest() else {
+            return nil
+        }
+
+        let cachedViewData = mapper.map(
+            snapshot: cachedEntry.snapshot,
+            locationSource: cachedEntry.locationSource,
+            dataOrigin: .cached(savedAt: cachedEntry.savedAt)
+        )
+        lastSuccessfulContent = cachedViewData
+        return cachedViewData
     }
 }

@@ -103,7 +103,9 @@ final class WeatherAPIClient: WeatherFetching {
     }
 
     private static func makeDefaultSession() -> URLSession {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         configuration.timeoutIntervalForRequest = Configuration.requestTimeout
         configuration.timeoutIntervalForResource = Configuration.requestTimeout
         return URLSession(configuration: configuration)

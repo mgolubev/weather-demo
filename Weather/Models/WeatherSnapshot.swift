@@ -1,6 +1,6 @@
 import Foundation
 
-struct WeatherSnapshot {
+struct WeatherSnapshot: Codable, Hashable, Sendable {
     let city: String
     let country: String
     let localTime: Date

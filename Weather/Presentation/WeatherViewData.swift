@@ -1,16 +1,20 @@
 import Foundation
 
 struct WeatherScreenViewData {
+    let hero: WeatherHeroViewData
+    let details: WeatherDetailsViewData
+    let hourlyItems: [HourlyForecastItemViewData]
+    let dailyItems: [DailyForecastItemViewData]
+    let isDay: Bool
+}
+
+struct WeatherHeroViewData {
     let locationText: String
     let metaText: String
     let currentSymbolName: String
     let temperatureText: String
     let conditionText: String
     let rangeText: String
-    let details: WeatherDetailsViewData
-    let hourlyItems: [HourlyForecastItemViewData]
-    let dailyItems: [DailyForecastItemViewData]
-    let isDay: Bool
 }
 
 struct WeatherDetailsViewData {

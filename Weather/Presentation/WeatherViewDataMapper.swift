@@ -7,15 +7,17 @@ protocol WeatherViewDataMapping {
 struct WeatherViewDataMapper: WeatherViewDataMapping {
     func map(snapshot: WeatherSnapshot) -> WeatherScreenViewData {
         WeatherScreenViewData(
-            locationText: snapshot.city,
-            metaText: "\(snapshot.country) • \(WeatherFormatters.updatedAt(snapshot.localTime, timeZone: snapshot.timeZone))",
-            currentSymbolName: WeatherSymbolProvider.symbolName(
-                for: snapshot.current.conditionCode,
-                isDay: snapshot.current.isDay
+            hero: WeatherHeroViewData(
+                locationText: snapshot.city,
+                metaText: "\(snapshot.country) • \(WeatherFormatters.updatedAt(snapshot.localTime, timeZone: snapshot.timeZone))",
+                currentSymbolName: WeatherSymbolProvider.symbolName(
+                    for: snapshot.current.conditionCode,
+                    isDay: snapshot.current.isDay
+                ),
+                temperatureText: WeatherFormatters.temperature(snapshot.current.temperature),
+                conditionText: snapshot.current.conditionText.capitalized,
+                rangeText: "Макс. \(WeatherFormatters.temperature(snapshot.current.dayHigh)) • Мин. \(WeatherFormatters.temperature(snapshot.current.dayLow))"
             ),
-            temperatureText: WeatherFormatters.temperature(snapshot.current.temperature),
-            conditionText: snapshot.current.conditionText.capitalized,
-            rangeText: "Макс. \(WeatherFormatters.temperature(snapshot.current.dayHigh)) • Мин. \(WeatherFormatters.temperature(snapshot.current.dayLow))",
             details: WeatherDetailsViewData(
                 feelsLikeText: WeatherFormatters.feelsLike(snapshot.current.feelsLike),
                 windText: WeatherFormatters.wind(snapshot.current.windKph),

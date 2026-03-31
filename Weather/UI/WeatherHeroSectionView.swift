@@ -48,6 +48,7 @@ final class WeatherHeroSectionView: UIView {
         metaLabel.font = .systemFont(ofSize: 15, weight: .medium)
         metaLabel.textColor = UIColor.white.withAlphaComponent(0.80)
         metaLabel.textAlignment = .center
+        metaLabel.numberOfLines = 0
 
         currentIconView.tintColor = .white
         currentIconView.contentMode = .scaleAspectFit

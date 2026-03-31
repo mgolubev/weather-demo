@@ -53,14 +53,14 @@ final class WeatherViewModel {
                 return
             }
 
-            let coordinates = await locationProvider.requestCoordinates()
-
             do {
+                let resolvedLocation = try await locationProvider.requestCoordinates()
+
                 try Task.checkCancellation()
-                let snapshot = try await weatherService.fetchWeather(for: coordinates)
+                let snapshot = try await weatherService.fetchWeather(for: resolvedLocation.coordinate)
                 try Task.checkCancellation()
 
-                let viewData = mapper.map(snapshot: snapshot)
+                let viewData = mapper.map(snapshot: snapshot, locationSource: resolvedLocation.source)
                 state = .content(viewData)
             } catch is CancellationError {
                 return

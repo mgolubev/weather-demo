@@ -2,13 +2,27 @@ import CoreLocation
 import Foundation
 
 protocol LocationProviding {
-    func requestCoordinates() async -> LocationCoordinate
+    func requestCoordinates() async throws -> ResolvedLocation
+}
+
+enum LocationServiceError: LocalizedError {
+    case authorizationUnresolved
+    case failedToDetermineLocation
+
+    var errorDescription: String? {
+        switch self {
+        case .authorizationUnresolved:
+            return "Не удалось получить актуальный статус доступа к геопозиции."
+        case .failedToDetermineLocation:
+            return "Не удалось определить текущее местоположение. Попробуйте ещё раз."
+        }
+    }
 }
 
 final class LocationService: NSObject, CLLocationManagerDelegate, LocationProviding {
     private let locationManager = CLLocationManager()
     private var authorizationContinuation: CheckedContinuation<CLAuthorizationStatus, Never>?
-    private var locationContinuation: CheckedContinuation<LocationCoordinate, Never>?
+    private var locationContinuation: CheckedContinuation<LocationCoordinate, Error>?
 
     override init() {
         super.init()
@@ -16,16 +30,19 @@ final class LocationService: NSObject, CLLocationManagerDelegate, LocationProvid
         locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
 
-    func requestCoordinates() async -> LocationCoordinate {
+    func requestCoordinates() async throws -> ResolvedLocation {
         switch await resolveAuthorizationStatus() {
         case .authorizedAlways, .authorizedWhenInUse:
-            return await requestCurrentLocation()
-        case .denied, .restricted:
-            return .moscow
+            let coordinate = try await requestCurrentLocation()
+            return ResolvedLocation(coordinate: coordinate, source: .device)
+        case .denied:
+            return .fallback(reason: .permissionDenied)
+        case .restricted:
+            return .fallback(reason: .permissionRestricted)
         case .notDetermined:
-            return .moscow
+            throw LocationServiceError.authorizationUnresolved
         @unknown default:
-            return .moscow
+            throw LocationServiceError.authorizationUnresolved
         }
     }
 
@@ -41,32 +58,23 @@ final class LocationService: NSObject, CLLocationManagerDelegate, LocationProvid
         }
     }
 
-    private func requestCurrentLocation() async -> LocationCoordinate {
-        await withCheckedContinuation { continuation in
+    private func requestCurrentLocation() async throws -> LocationCoordinate {
+        try await withCheckedThrowingContinuation { continuation in
             locationContinuation = continuation
             locationManager.requestLocation()
         }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        if let authorizationContinuation {
+        if let authorizationContinuation, manager.authorizationStatus != .notDetermined {
             authorizationContinuation.resume(returning: manager.authorizationStatus)
             self.authorizationContinuation = nil
-        }
-
-        switch manager.authorizationStatus {
-        case .denied, .restricted:
-            finishLocation(with: .moscow)
-        case .authorizedAlways, .authorizedWhenInUse, .notDetermined:
-            break
-        @unknown default:
-            finishLocation(with: .moscow)
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let coordinate = freshestCoordinate(in: locations) else {
-            finishLocation(with: .moscow)
+            finishLocation(with: LocationServiceError.failedToDetermineLocation)
             return
         }
 
@@ -74,11 +82,16 @@ final class LocationService: NSObject, CLLocationManagerDelegate, LocationProvid
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        finishLocation(with: .moscow)
+        finishLocation(with: LocationServiceError.failedToDetermineLocation)
     }
 
     private func finishLocation(with coordinate: LocationCoordinate) {
         locationContinuation?.resume(returning: coordinate)
+        locationContinuation = nil
+    }
+
+    private func finishLocation(with error: Error) {
+        locationContinuation?.resume(throwing: error)
         locationContinuation = nil
     }
 

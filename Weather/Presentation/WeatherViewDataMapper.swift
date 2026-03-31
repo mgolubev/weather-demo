@@ -1,15 +1,20 @@
 import Foundation
 
 protocol WeatherViewDataMapping {
-    func map(snapshot: WeatherSnapshot) -> WeatherScreenViewData
+    func map(snapshot: WeatherSnapshot, locationSource: LocationSource) -> WeatherScreenViewData
 }
 
 struct WeatherViewDataMapper: WeatherViewDataMapping {
-    func map(snapshot: WeatherSnapshot) -> WeatherScreenViewData {
-        WeatherScreenViewData(
+    func map(snapshot: WeatherSnapshot, locationSource: LocationSource) -> WeatherScreenViewData {
+        let metadataLine = "\(snapshot.country) • \(WeatherFormatters.updatedAt(snapshot.localTime, timeZone: snapshot.timeZone))"
+        let metaText = [metadataLine, locationSource.noticeText]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+
+        return WeatherScreenViewData(
             hero: WeatherHeroViewData(
                 locationText: snapshot.city,
-                metaText: "\(snapshot.country) • \(WeatherFormatters.updatedAt(snapshot.localTime, timeZone: snapshot.timeZone))",
+                metaText: metaText,
                 currentSymbolName: WeatherSymbolProvider.symbolName(
                     for: snapshot.current.conditionCode,
                     isDay: snapshot.current.isDay

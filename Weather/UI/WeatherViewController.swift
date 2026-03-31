@@ -47,10 +47,6 @@ final class WeatherViewController: UIViewController {
         viewModel.onStateChange = { [weak self] state in
             self?.render(state: state)
         }
-
-        viewModel.onEvent = { [weak self] event in
-            self?.handle(event: event)
-        }
     }
 
     private func render(state: WeatherViewState) {
@@ -61,20 +57,6 @@ final class WeatherViewController: UIViewController {
             setRefreshing(true)
         case .loading, .content, .error:
             setRefreshing(false)
-        }
-    }
-
-    private func handle(event: WeatherViewEvent) {
-        switch event {
-        case let .showRefreshError(title, message):
-            let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "Ок", style: .cancel))
-            alert.addAction(
-                UIAlertAction(title: "Повторить", style: .default) { [weak self] _ in
-                    self?.viewModel.refreshTapped()
-                }
-            )
-            present(alert, animated: true)
         }
     }
 

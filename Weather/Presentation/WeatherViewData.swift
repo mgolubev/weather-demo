@@ -50,7 +50,3 @@ enum WeatherViewState {
     case refreshing(WeatherScreenViewData)
     case error(WeatherErrorViewData)
 }
-
-enum WeatherViewEvent {
-    case showRefreshError(title: String, message: String)
-}

@@ -3,13 +3,13 @@ import Foundation
 @MainActor
 final class WeatherViewModel {
     var onStateChange: ((WeatherViewState) -> Void)?
-    var onEvent: ((WeatherViewEvent) -> Void)?
 
     private let locationProvider: LocationProviding
     private let weatherService: WeatherFetching
     private let mapper: WeatherViewDataMapping
 
     private var loadTask: Task<Void, Never>?
+    private var lastSuccessfulContent: WeatherScreenViewData?
     private var state: WeatherViewState = .loading {
         didSet {
             onStateChange?(state)
@@ -43,7 +43,7 @@ final class WeatherViewModel {
     }
 
     private func loadWeather() {
-        let previousContent = currentContent
+        let previousContent = lastSuccessfulContent
         loadTask?.cancel()
 
         state = previousContent.map(WeatherViewState.refreshing) ?? .loading
@@ -61,37 +61,23 @@ final class WeatherViewModel {
                 try Task.checkCancellation()
 
                 let viewData = mapper.map(snapshot: snapshot, locationSource: resolvedLocation.source)
+                lastSuccessfulContent = viewData
                 state = .content(viewData)
             } catch is CancellationError {
                 return
             } catch {
-                if let previousContent {
-                    state = .content(previousContent)
-                    onEvent?(
-                        .showRefreshError(
-                            title: "Не удалось обновить данные",
-                            message: error.localizedDescription
-                        )
-                    )
-                } else {
-                    state = .error(
-                        WeatherErrorViewData(
-                            title: "Не удалось загрузить погоду",
-                            message: error.localizedDescription,
-                            buttonTitle: "Повторить"
-                        )
-                    )
-                }
-            }
-        }
-    }
+                let title = previousContent == nil
+                    ? "Не удалось загрузить погоду"
+                    : "Не удалось обновить данные"
 
-    private var currentContent: WeatherScreenViewData? {
-        switch state {
-        case let .content(viewData), let .refreshing(viewData):
-            return viewData
-        case .loading, .error:
-            return nil
+                state = .error(
+                    WeatherErrorViewData(
+                        title: title,
+                        message: error.localizedDescription,
+                        buttonTitle: "Повторить"
+                    )
+                )
+            }
         }
     }
 }

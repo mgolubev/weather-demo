@@ -379,7 +379,7 @@ final class WeatherScreenView: GradientBackgroundView {
         errorOverlayView.configure(with: errorViewData)
         loadingOverlayView.setVisible(false)
         errorOverlayView.setVisible(true)
-        collectionView.isHidden = true
+        collectionView.isHidden = lastViewData == nil
         refreshControl.endRefreshing()
     }
 

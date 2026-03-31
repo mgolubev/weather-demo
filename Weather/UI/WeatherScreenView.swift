@@ -1,6 +1,38 @@
 import UIKit
 
+private enum WeatherScreenSection: Int, CaseIterable, Sendable {
+    case hero
+    case details
+    case hourly
+    case daily
+
+    var title: String? {
+        switch self {
+        case .hero, .details:
+            return nil
+        case .hourly:
+            return "По часам"
+        case .daily:
+            return "Прогноз на 3 дня"
+        }
+    }
+}
+
+private enum WeatherScreenLayout {
+    static let horizontalInset: CGFloat = 20
+    static let sectionBottomSpacing: CGFloat = 18
+    static let screenBottomInset: CGFloat = 40
+    static let headerEstimatedHeight: CGFloat = 48
+}
+
 final class WeatherScreenView: GradientBackgroundView {
+    private enum RenderedItem {
+        case hero(WeatherHeroViewData)
+        case details(WeatherDetailsViewData)
+        case hourly(HourlyForecastItemViewData)
+        case daily(DailyForecastItemViewData)
+    }
+
     var onRetry: (() -> Void)? {
         get { errorOverlayView.onRetry }
         set { errorOverlayView.onRetry = newValue }
@@ -8,14 +40,42 @@ final class WeatherScreenView: GradientBackgroundView {
 
     var onPullToRefresh: (() -> Void)?
 
-    private let scrollView = UIScrollView()
-    private let contentStack = UIStackView()
     private let refreshControl = UIRefreshControl()
 
-    private let heroSectionView = WeatherHeroSectionView()
-    private let detailsSectionView = WeatherDetailsSectionView()
-    private let hourlySectionView = HourlyForecastSectionView()
-    private let dailySectionView = DailyForecastSectionView()
+    private lazy var collectionView: UICollectionView = {
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: makeLayout())
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.backgroundColor = .clear
+        collectionView.alwaysBounceVertical = true
+        collectionView.showsVerticalScrollIndicator = false
+        collectionView.contentInsetAdjustmentBehavior = .always
+        collectionView.refreshControl = refreshControl
+        collectionView.register(
+            WeatherHeroCollectionViewCell.self,
+            forCellWithReuseIdentifier: WeatherHeroCollectionViewCell.reuseIdentifier
+        )
+        collectionView.register(
+            WeatherDetailsCollectionViewCell.self,
+            forCellWithReuseIdentifier: WeatherDetailsCollectionViewCell.reuseIdentifier
+        )
+        collectionView.register(
+            HourlyForecastCell.self,
+            forCellWithReuseIdentifier: HourlyForecastCell.reuseIdentifier
+        )
+        collectionView.register(
+            DailyForecastCollectionViewCell.self,
+            forCellWithReuseIdentifier: DailyForecastCollectionViewCell.reuseIdentifier
+        )
+        collectionView.register(
+            WeatherSectionHeaderView.self,
+            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+            withReuseIdentifier: WeatherSectionHeaderView.reuseIdentifier
+        )
+        return collectionView
+    }()
+
+    private lazy var dataSource = makeDataSource()
+    private var renderedItems: [String: RenderedItem] = [:]
 
     private let loadingOverlayView = WeatherLoadingOverlayView()
     private let errorOverlayView = WeatherErrorOverlayView()
@@ -23,6 +83,7 @@ final class WeatherScreenView: GradientBackgroundView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureHierarchy()
+        configureRefreshControl()
         render(state: .loading)
     }
 
@@ -47,46 +108,15 @@ final class WeatherScreenView: GradientBackgroundView {
     }
 
     private func configureHierarchy() {
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.alwaysBounceVertical = true
-        scrollView.contentInsetAdjustmentBehavior = .always
-        scrollView.refreshControl = refreshControl
-
-        refreshControl.tintColor = .white
-        refreshControl.addAction(
-            UIAction { [weak self] _ in
-                self?.onPullToRefresh?()
-            },
-            for: .valueChanged
-        )
-
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-        contentStack.axis = .vertical
-        contentStack.spacing = 18
-        contentStack.isLayoutMarginsRelativeArrangement = true
-        contentStack.layoutMargins = UIEdgeInsets(top: 24, left: 20, bottom: 40, right: 20)
-
-        addSubview(scrollView)
-        scrollView.addSubview(contentStack)
-
-        [heroSectionView, detailsSectionView, hourlySectionView, dailySectionView].forEach {
-            contentStack.addArrangedSubview($0)
-        }
-
+        addSubview(collectionView)
         addSubview(loadingOverlayView)
         addSubview(errorOverlayView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
-
-            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+            collectionView.topAnchor.constraint(equalTo: topAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
             loadingOverlayView.topAnchor.constraint(equalTo: topAnchor),
             loadingOverlayView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -100,14 +130,232 @@ final class WeatherScreenView: GradientBackgroundView {
         ])
     }
 
+    private func configureRefreshControl() {
+        refreshControl.tintColor = .white
+        refreshControl.addAction(
+            UIAction { [weak self] _ in
+                self?.onPullToRefresh?()
+            },
+            for: .valueChanged
+        )
+    }
+
+    private func makeLayout() -> UICollectionViewLayout {
+        UICollectionViewCompositionalLayout { [weak self] sectionIndex, _ in
+            guard let self, let section = WeatherScreenSection(rawValue: sectionIndex) else {
+                return nil
+            }
+
+            return self.layoutSection(for: section)
+        }
+    }
+
+    private func layoutSection(for section: WeatherScreenSection) -> NSCollectionLayoutSection {
+        switch section {
+        case .hero:
+            return makeFullWidthSection(
+                estimatedHeight: 340,
+                contentInsets: NSDirectionalEdgeInsets(
+                    top: 24,
+                    leading: WeatherScreenLayout.horizontalInset,
+                    bottom: WeatherScreenLayout.sectionBottomSpacing,
+                    trailing: WeatherScreenLayout.horizontalInset
+                )
+            )
+        case .details:
+            return makeFullWidthSection(
+                estimatedHeight: 240,
+                contentInsets: NSDirectionalEdgeInsets(
+                    top: 0,
+                    leading: WeatherScreenLayout.horizontalInset,
+                    bottom: WeatherScreenLayout.sectionBottomSpacing,
+                    trailing: WeatherScreenLayout.horizontalInset
+                )
+            )
+        case .hourly:
+            return makeHourlySection()
+        case .daily:
+            return makeDailySection()
+        }
+    }
+
+    private func makeFullWidthSection(
+        estimatedHeight: CGFloat,
+        contentInsets: NSDirectionalEdgeInsets
+    ) -> NSCollectionLayoutSection {
+        let itemSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1.0),
+            heightDimension: .estimated(estimatedHeight)
+        )
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        let group = NSCollectionLayoutGroup.horizontal(layoutSize: itemSize, subitems: [item])
+        let section = NSCollectionLayoutSection(group: group)
+        section.contentInsets = contentInsets
+        return section
+    }
+
+    private func makeHourlySection() -> NSCollectionLayoutSection {
+        let itemSize = NSCollectionLayoutSize(
+            widthDimension: .absolute(92),
+            heightDimension: .absolute(132)
+        )
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        let group = NSCollectionLayoutGroup.horizontal(layoutSize: itemSize, subitems: [item])
+        let section = NSCollectionLayoutSection(group: group)
+        section.interGroupSpacing = 12
+        section.orthogonalScrollingBehavior = .continuousGroupLeadingBoundary
+        section.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: WeatherScreenLayout.horizontalInset,
+            bottom: WeatherScreenLayout.sectionBottomSpacing,
+            trailing: WeatherScreenLayout.horizontalInset
+        )
+        section.boundarySupplementaryItems = [makeSectionHeader()]
+        return section
+    }
+
+    private func makeDailySection() -> NSCollectionLayoutSection {
+        let itemSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1.0),
+            heightDimension: .estimated(88)
+        )
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        let group = NSCollectionLayoutGroup.horizontal(layoutSize: itemSize, subitems: [item])
+        let section = NSCollectionLayoutSection(group: group)
+        section.interGroupSpacing = 12
+        section.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: WeatherScreenLayout.horizontalInset,
+            bottom: WeatherScreenLayout.screenBottomInset,
+            trailing: WeatherScreenLayout.horizontalInset
+        )
+        section.boundarySupplementaryItems = [makeSectionHeader()]
+        return section
+    }
+
+    private func makeSectionHeader() -> NSCollectionLayoutBoundarySupplementaryItem {
+        let size = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1.0),
+            heightDimension: .estimated(WeatherScreenLayout.headerEstimatedHeight)
+        )
+        let header = NSCollectionLayoutBoundarySupplementaryItem(
+            layoutSize: size,
+            elementKind: UICollectionView.elementKindSectionHeader,
+            alignment: .top
+        )
+        header.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: WeatherScreenLayout.horizontalInset,
+            bottom: 0,
+            trailing: WeatherScreenLayout.horizontalInset
+        )
+        return header
+    }
+
+    private func makeDataSource() -> UICollectionViewDiffableDataSource<Int, String> {
+        let dataSource = UICollectionViewDiffableDataSource<Int, String>(
+            collectionView: collectionView
+        ) { [weak self] collectionView, indexPath, identifier in
+            guard let self, let item = renderedItems[identifier] else {
+                return UICollectionViewCell()
+            }
+
+            switch item {
+                case let .hero(viewData):
+                    guard let cell = collectionView.dequeueReusableCell(
+                    withReuseIdentifier: WeatherHeroCollectionViewCell.reuseIdentifier,
+                    for: indexPath
+                ) as? WeatherHeroCollectionViewCell else {
+                    return UICollectionViewCell()
+                }
+                cell.configure(with: viewData)
+                return cell
+
+            case let .details(viewData):
+                guard let cell = collectionView.dequeueReusableCell(
+                    withReuseIdentifier: WeatherDetailsCollectionViewCell.reuseIdentifier,
+                    for: indexPath
+                ) as? WeatherDetailsCollectionViewCell else {
+                    return UICollectionViewCell()
+                }
+                cell.configure(with: viewData)
+                return cell
+
+            case let .hourly(viewData):
+                guard let cell = collectionView.dequeueReusableCell(
+                    withReuseIdentifier: HourlyForecastCell.reuseIdentifier,
+                    for: indexPath
+                ) as? HourlyForecastCell else {
+                    return UICollectionViewCell()
+                }
+                cell.configure(with: viewData)
+                return cell
+
+            case let .daily(viewData):
+                guard let cell = collectionView.dequeueReusableCell(
+                    withReuseIdentifier: DailyForecastCollectionViewCell.reuseIdentifier,
+                    for: indexPath
+                ) as? DailyForecastCollectionViewCell else {
+                    return UICollectionViewCell()
+                }
+                cell.configure(with: viewData)
+                return cell
+            }
+        }
+
+        dataSource.supplementaryViewProvider = { collectionView, kind, indexPath -> UICollectionReusableView? in
+            guard kind == UICollectionView.elementKindSectionHeader,
+                  let section = WeatherScreenSection(rawValue: indexPath.section),
+                  let title = section.title,
+                  let header = collectionView.dequeueReusableSupplementaryView(
+                    ofKind: kind,
+                    withReuseIdentifier: WeatherSectionHeaderView.reuseIdentifier,
+                    for: indexPath
+                  ) as? WeatherSectionHeaderView else {
+                return nil
+            }
+
+            header.configure(title: title)
+            return header
+        }
+
+        return dataSource
+    }
+
     private func apply(viewData: WeatherScreenViewData, isRefreshing: Bool = false) {
-        heroSectionView.configure(with: viewData.hero)
-        detailsSectionView.configure(with: viewData.details)
-        hourlySectionView.setItems(viewData.hourlyItems)
-        dailySectionView.setItems(viewData.dailyItems)
+        var snapshot = NSDiffableDataSourceSnapshot<Int, String>()
+        var renderedItems: [String: RenderedItem] = [:]
+
+        let sectionIdentifiers = WeatherScreenSection.allCases.map(\.rawValue)
+        snapshot.appendSections(sectionIdentifiers)
+
+        let heroIdentifier = "hero"
+        renderedItems[heroIdentifier] = .hero(viewData.hero)
+        snapshot.appendItems([heroIdentifier], toSection: WeatherScreenSection.hero.rawValue)
+
+        let detailsIdentifier = "details"
+        renderedItems[detailsIdentifier] = .details(viewData.details)
+        snapshot.appendItems([detailsIdentifier], toSection: WeatherScreenSection.details.rawValue)
+
+        let hourlyIdentifiers = viewData.hourlyItems.enumerated().map { index, item -> String in
+            let identifier = "hourly-\(index)"
+            renderedItems[identifier] = .hourly(item)
+            return identifier
+        }
+        snapshot.appendItems(hourlyIdentifiers, toSection: WeatherScreenSection.hourly.rawValue)
+
+        let dailyIdentifiers = viewData.dailyItems.enumerated().map { index, item -> String in
+            let identifier = "daily-\(index)"
+            renderedItems[identifier] = .daily(item)
+            return identifier
+        }
+        snapshot.appendItems(dailyIdentifiers, toSection: WeatherScreenSection.daily.rawValue)
+
+        self.renderedItems = renderedItems
+        dataSource.apply(snapshot, animatingDifferences: false)
 
         applyTheme(isDay: viewData.isDay)
-        scrollView.isHidden = false
+        collectionView.isHidden = false
         errorOverlayView.setVisible(false)
         loadingOverlayView.setVisible(false)
 
@@ -120,7 +368,7 @@ final class WeatherScreenView: GradientBackgroundView {
         errorOverlayView.configure(with: errorViewData)
         loadingOverlayView.setVisible(false)
         errorOverlayView.setVisible(true)
-        scrollView.isHidden = true
+        collectionView.isHidden = true
         refreshControl.endRefreshing()
     }
 
@@ -128,12 +376,12 @@ final class WeatherScreenView: GradientBackgroundView {
         errorOverlayView.setVisible(false)
 
         if preservingContent {
-            scrollView.isHidden = false
+            collectionView.isHidden = false
             loadingOverlayView.setVisible(false)
             return
         }
 
-        scrollView.isHidden = true
+        collectionView.isHidden = true
         loadingOverlayView.setVisible(true)
         refreshControl.endRefreshing()
     }

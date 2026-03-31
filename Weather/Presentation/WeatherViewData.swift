@@ -8,7 +8,7 @@ struct WeatherScreenViewData {
     let isDay: Bool
 }
 
-struct WeatherHeroViewData {
+struct WeatherHeroViewData: Hashable, Sendable {
     let locationText: String
     let metaText: String
     let currentSymbolName: String
@@ -17,20 +17,20 @@ struct WeatherHeroViewData {
     let rangeText: String
 }
 
-struct WeatherDetailsViewData {
+struct WeatherDetailsViewData: Hashable, Sendable {
     let feelsLikeText: String
     let windText: String
     let humidityText: String
     let uvText: String
 }
 
-struct HourlyForecastItemViewData {
+struct HourlyForecastItemViewData: Hashable, Sendable {
     let timeText: String
     let symbolName: String
     let temperatureText: String
 }
 
-struct DailyForecastItemViewData {
+struct DailyForecastItemViewData: Hashable, Sendable {
     let dayText: String
     let descriptionText: String
     let symbolName: String
